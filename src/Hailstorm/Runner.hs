@@ -75,8 +75,8 @@ localRunner :: (SnapshotStore s, InputSource i)
             -> s
             -> IO ()
 localRunner zkOpts topology spName source snapshotStore = do
-    infoM "Running in local mode"
     prepareRunner
+    infoM "Running in local mode"
 
     negotiatorTid <- forkOS $ runNegotiator zkOpts topology
     infoM $ "Spawned negotiator " ++ show negotiatorTid

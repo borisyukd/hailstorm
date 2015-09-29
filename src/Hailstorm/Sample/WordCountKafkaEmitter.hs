@@ -16,9 +16,9 @@ infoM :: String -> IO ()
 infoM = L.infoM "Hailstorm.Sample/WordCountKafkaEmitter"
 
 emitLinesForever :: FilePath -> KafkaOptions -> Int -> Int -> IO ()
-emitLinesForever fp kOpts emitSleepMs emitSizeBatch = do
+emitLinesForever fp kOpts _ emitSizeBatch = do
     infoM "Constructing kafka"
-    (Right (kafka, kTopic)) <- kafkaFromOptions kOpts KafkaProducer
+    (Right (kafka, kTopic)) <- kafkaProducerFromOptions kOpts
     infoM "Constructed kafka, beginning emit loop"
 
     emitLoop kafka kTopic 
@@ -31,6 +31,6 @@ emitLinesForever fp kOpts emitSleepMs emitSizeBatch = do
             forM_ (chunksOf emitSizeBatch messages) $ \msgBatch -> do
               errs <- produceMessageBatch kTopic KafkaUnassignedPartition msgBatch
               when ((length errs) > 0) (infoM $ "Error enquining some kafka messages " ++ show errs)
-              pollEvents kafka emitSleepMs
+--              pollEvents kafka emitSleepMs # set to 100 by default in drainOutQueue
 
             drainOutQueue kafka

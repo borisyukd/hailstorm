@@ -1,5 +1,5 @@
 name:                hailstorm
-version:             0.1.0.0
+version:             0.1.0.1
 synopsis:            Hailstorm is our CS240h final project
 -- description:
 license:             Apache-2.0
@@ -56,11 +56,13 @@ library
    , containers
    , split
    , hzk
+-- cabal install --extra-include-dirs=/opt/zookeeper_c/include/zookeeper --extra-lib-dirs=/opt/zookeeper_c/lib hzk
    , unix
    , transformers
    , either
    , monad-loops
-   , haskakafka >= 0.1.0.7
+   , haskakafka >= 1.0.0
+--cabal install --extra-include-dirs=/opt/librdkafka_c/include/librdkafka --extra-lib-dirs=/opt/librdkafka_c/lib haskakafka
    , stm
    , PSQueue
    , hashable

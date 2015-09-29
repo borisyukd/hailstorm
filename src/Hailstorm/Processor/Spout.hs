@@ -22,6 +22,9 @@ import qualified Data.Map as Map
 import qualified Database.Zookeeper as ZK
 import qualified System.Log.Logger as L
 
+import Haskakafka (withKafkaConsumer, KafkaOffset(..))
+import Hailstorm.InputSource.KafkaSource (partitionProducer')
+
 infoM :: String -> IO ()
 infoM = L.infoM "Hailstorm.Processor.Spout"
 
@@ -66,17 +69,21 @@ runSpout zkOpts sp partition topology inputSource = do
     throw $ ZookeeperConnectionError $ "Unable to register spout " ++ show spoutId
   where
     signalState mVar ms = tryTakeMVar mVar >> putMVar mVar ms
-    pipeThread masterTid zk instNum stateMVar offset =
-      let downstream = downstreamPoolConsumer (spoutName sp) topology
-          producer = partitionProducer inputSource partition offset
-      in handleJust (\e -> if e /= ThreadKilled then Just (e) else Nothing) 
-                    (\e -> (infoM $ "Caught " ++ show e ++ " in spout " ++ show instNum) 
-                            >> doubleThrow masterTid e)
-                    (runEffect $
-                      producer >-> 
-                      spoutStatePipe zk sp instNum partition offset stateMVar >-> 
-                      downstream
-                    )
+    pipeThread masterTid zk instNum stateMVar offset = 
+        let partition' = read partition :: Int
+        in withKafkaConsumer [] [] "localhost:9092" "test" partition' (KafkaOffset (fromIntegral offset)) $ 
+          \_ kTopic -> 
+            let downstream = downstreamPoolConsumer (spoutName sp) topology
+                --producer = partitionProducer inputSource partition' offset
+                producer = partitionProducer' kTopic partition'
+            in handleJust (\e -> if e /= ThreadKilled then Just (e) else Nothing) 
+                          (\e -> (infoM $ "Caught " ++ show e ++ " in spout " ++ show instNum) 
+                                  >> doubleThrow masterTid e)
+                          (runEffect $
+                            producer >-> 
+                            spoutStatePipe zk sp instNum partition offset stateMVar >-> 
+                            downstream
+                          )
 
 spoutStatePipe :: ZK.Zookeeper
                -> Spout

@@ -1,12 +1,15 @@
 module Hailstorm.InputSource.KafkaSource
 ( KafkaOptions(..)
 , KafkaSource(..)
-, kafkaFromOptions
+, kafkaProducerFromOptions
+, partitionProducer'
 ) where
 
 import Control.Monad
 import Control.Exception
 import Haskakafka
+import Haskakafka.InternalSetup (ConfigOverrides, newKafkaConf, newKafkaTopicConf)
+import Haskakafka.InternalRdKafkaEnum (RdKafkaRespErrT(..))
 import Hailstorm.Clock
 import Hailstorm.InputSource
 import Hailstorm.Error
@@ -27,6 +30,27 @@ data KafkaOptions = KafkaOptions
   , defaultKafkaTimeout :: Int
   } deriving (Eq, Show)
 
+
+partitionProducer' :: KafkaTopic -> Int -> Producer InputTuple IO ()
+partitionProducer' = kConsumer 
+    where
+      kOpts = KafkaOptions "localhost:9092" "test" 60000
+      kConsumer kTopic partition = forever $ do
+        me <- lift $ consumeMessage kTopic partition (defaultKafkaTimeout kOpts)
+        case me of 
+          (Left (KafkaResponseError RdKafkaRespErrPartitionEof)) ->
+            lift $ infoM $ "End of partition " ++ show partition ++ ": waiting for producer"
+          Left e -> 
+            lift $ errorM $ "Got error while consuming from Kafka: " ++ show e
+          Right m -> do
+            yield $ InputTuple (messagePayload m) 
+                               (show $ messagePartition m) 
+                               (fromIntegral $ messageOffset m)
+
+kafkaProducerFromOptions :: KafkaOptions -> IO (Either HSError (Kafka, KafkaTopic))
+kafkaProducerFromOptions kOpts = withKafkaProducer [] [] (brokerConnectionString kOpts) (topic kOpts) $ \kafka kTopic -> return $ Right (kafka, kTopic)
+
+{-
 kafkaFromOptions :: KafkaOptions -> KafkaType -> IO (Either HSError (Kafka, KafkaTopic))
 kafkaFromOptions kOpts t = do
     kConf <- newKafkaConf
@@ -37,12 +61,15 @@ kafkaFromOptions kOpts t = do
     kTopic <- newKafkaTopic kafka (topic kOpts) kTopicConf
 
     return $ Right (kafka, kTopic)
+-}
 
 data KafkaSource = KafkaSource 
   { kafkaOptions :: KafkaOptions
   } deriving (Eq, Show)
 
 instance InputSource KafkaSource where
+  partitionProducer (KafkaSource _) _ _ = undefined
+{-
   partitionProducer (KafkaSource kOpts) partitionStr offset = do
     let partition = read partitionStr :: Int
     (_, kTopic) <- lift $ forceEitherIO UnexpectedKafkaError $ kafkaFromOptions kOpts KafkaConsumer
@@ -61,9 +88,11 @@ instance InputSource KafkaSource where
             yield $ InputTuple (messagePayload m) 
                                (show $ messagePartition m) 
                                (fromIntegral $ messageOffset m)
-
+-}
   allPartitions (KafkaSource kOpts) = do
-    (kafka, kTopic) <- forceEitherIO UnexpectedKafkaError $ kafkaFromOptions kOpts KafkaConsumer
+    kConf <- newKafkaConf
+    kTopicConf <- newKafkaTopicConf
+    (kafka, kTopic) <- forceEitherIO UnexpectedKafkaError $ kafkaProducerFromOptions kOpts
     md <- forceEitherIO UnexpectedKafkaError $ getTopicMetadata kafka kTopic (defaultKafkaTimeout kOpts)
     forM (topicPartitions md) $ \et -> case et of
         Left _ -> throw UnexpectedKafkaError

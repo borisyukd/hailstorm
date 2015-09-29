@@ -45,7 +45,8 @@ instance Options MainOptions where
             "Kafka Topic"
         <*> simpleOption "kafka-timeout" 60
             "Standard kafka timeout (seconds)"
-        <*> simpleOption "use-kafka" False
+        <*> simpleOption "use-kafka" True
+--        <*> simpleOption "use-kafka" False
             "Use kafka as an input source"
         <*> simpleOption "store" ".store"
             "Directory to use as snapshot store (default: .store directory in current)"
