@@ -84,7 +84,7 @@ runDownstream opts dId@(dName, dInst) topology inputSource snapshotStore = do
                       _ -> throwNoDownstreamError
 
     groundhogDay dId (runDownstream opts dId topology inputSource snapshotStore) $ do
-        (pcOutput, pcInput, seal) <- PC.spawn' PC.Single
+        (pcOutput, pcInput, seal) <- PC.spawn' $ PC.bounded 1
         serverRef <- newIORef (Nothing :: Maybe ThreadId)
 
         finally (registerProcessor opts dId startState $ \zk -> do

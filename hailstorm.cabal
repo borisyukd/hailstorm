@@ -62,7 +62,7 @@ library
    , either
    , monad-loops
    , haskakafka >= 1.0.0
---cabal install --extra-include-dirs=/opt/librdkafka_c/include/librdkafka --extra-lib-dirs=/opt/librdkafka_c/lib haskakafka
+--cabal install --extra-include-dirs=/opt/librdkafka_c/include/librdkafka --extra-lib-dirs=/opt/librdkafka_c/lib haskakafka c2hs
    , stm
    , PSQueue
    , hashable
@@ -89,7 +89,7 @@ executable hailstorm
    , options
    , unix
    , monad-loops
-   , haskakafka >= 0.1.0.7
+   , haskakafka >= 1.0.0
    , stm
    , PSQueue
    , hashable

@@ -24,6 +24,8 @@ import qualified Hailstorm.Runner as HSR
 import qualified Data.Foldable
 import qualified Data.Map as Map
 
+import Hailstorm.Error
+
 -- | Options for the main program.
 data MainOptions = MainOptions
     { optConnect :: String
@@ -141,7 +143,13 @@ runSample mainOpts _ _ = do
     store <- createSnapshotStore mainOpts
 
     if optUseKafka mainOpts
+{-
         then runWithSource (KafkaSource $ kafkaOptionsFromMainOptions mainOpts) store
+-}
+        then do
+            let kOpts = kafkaOptionsFromMainOptions mainOpts
+            (k, t) <- forceEitherIO UnexpectedKafkaError $ kafkaProducerFromOptions kOpts
+            runWithSource (KafkaSource kOpts k t) store
         else do
             f <- getStreamSourceFile mainOpts
             runWithSource (FileSource [f]) store
@@ -166,8 +174,15 @@ runProcessors mainOpts processorOpts processorMatches = do
     forM_ pids $ \pid -> Data.Foldable.forM_ (checkProcessor topology pid) error
 
     if optUseKafka mainOpts
+{-
         then HSR.runProcessors zkOpts topology
             (KafkaSource $ kafkaOptionsFromMainOptions mainOpts) store pids
+-}
+        then do
+            let kOpts = kafkaOptionsFromMainOptions mainOpts
+            (k, t) <- forceEitherIO UnexpectedKafkaError $ kafkaProducerFromOptions kOpts
+            HSR.runProcessors zkOpts topology
+                (KafkaSource kOpts k t) store pids
         else do
             fp <- getStreamSourceFile mainOpts
             HSR.runProcessors zkOpts topology (FileSource [fp]) store pids

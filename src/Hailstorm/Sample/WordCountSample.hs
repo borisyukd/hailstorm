@@ -35,7 +35,7 @@ forceDyn x = case fromDynamic x of
   Nothing -> throw $ InvalidTopologyError $ 
              "Word count sample forced dynamic to bad type: " ++ show x
 
-deriving instance Typeable2 PS.PSQ
+deriving instance Typeable PS.PSQ
 
 data TypeableIntSum = TIS (Sum Int)
                       deriving (Eq, Typeable, Show, Read)

@@ -65,10 +65,12 @@ kafkaFromOptions kOpts t = do
 
 data KafkaSource = KafkaSource 
   { kafkaOptions :: KafkaOptions
-  } deriving (Eq, Show)
+  , kafka :: Kafka
+  , kTopic :: KafkaTopic
+  } -- deriving (Eq, Show)
 
 instance InputSource KafkaSource where
-  partitionProducer (KafkaSource _) _ _ = undefined
+  partitionProducer (KafkaSource _ _ _) _ _ = undefined
 {-
   partitionProducer (KafkaSource kOpts) partitionStr offset = do
     let partition = read partitionStr :: Int
@@ -89,6 +91,12 @@ instance InputSource KafkaSource where
                                (show $ messagePartition m) 
                                (fromIntegral $ messageOffset m)
 -}
+  allPartitions (KafkaSource kOpts kafka kTopic) = do --return ["0"]
+    md <- forceEitherIO UnexpectedKafkaError $ getTopicMetadata kafka kTopic (defaultKafkaTimeout kOpts)
+    forM (topicPartitions md) $ \et -> case et of
+        Left _ -> throw UnexpectedKafkaError
+        Right tmd -> return $ show $ partitionId tmd
+{-
   allPartitions (KafkaSource kOpts) = do
     kConf <- newKafkaConf
     kTopicConf <- newKafkaTopicConf
@@ -97,6 +105,6 @@ instance InputSource KafkaSource where
     forM (topicPartitions md) $ \et -> case et of
         Left _ -> throw UnexpectedKafkaError
         Right tmd -> return $ show $ partitionId tmd
-
+-}
   startClock s = allPartitions s >>= \ps ->
     return $ Clock $ Map.fromList $ zip ps (repeat (- 2))
